@@ -91,6 +91,7 @@ except ImportError:
 def main():
     """Main."""
     # pylint: disable = too-many-branches
+    # pylint: disable = fixme
     module = AnsibleModule(
         argument_spec=dict(
             datacenter=dict(type='str', required=True),
@@ -109,11 +110,9 @@ def main():
         if not requirement:
             module.fail_json(msg='%s not installed.' % (requirement))
 
-    # initiate module
-    results = {'failed': True, 'msg': 'something went wrong'}
-
     # check mode
     if module.check_mode:
+        # TODO: Check if DRS rule already exists
         results = {'failed': False,
                    'msg': 'Check mode not implemented. Variable debug only.',
                    'params': module.params,
@@ -121,12 +120,19 @@ def main():
                    'pyVmomi_dir': dir(vim.vm)}
         module.exit_json(**results)
 
-    # pylint: disable = fixme
-    # TODO: Add Code Here
-    # Create results json.
-    # Needs either 'failed' or 'changed' set to True or False accordingly.
+    # TODO: Replace Code Below with Functional Code
+    # Create results object. Needs either 'failed' or 'changed' key set
+    # to True or False accordingly.
     # Include any other data to show up with debug verbosity.
-    results = {'failed': False, 'requirements_installed': REQUIREMENTS}
+
+    # set default results to failed
+    results = {'failed': True, 'msg': 'something went wrong'}
+
+    def do_something():
+        """Do something."""
+        return {'failed': False, 'requirements_installed': REQUIREMENTS}
+
+    results = do_something()
 
     module.exit_json(**results)
 
