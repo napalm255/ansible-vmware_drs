@@ -15,7 +15,7 @@ Ansible VMWare DRS Module
      :alt: Updates
 
 
-Ansible Selenium Module
+Ansible VMWare DRS Module
 
 
 * Free software: BSD license
