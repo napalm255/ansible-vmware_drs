@@ -3,7 +3,7 @@ Ansible VMWare DRS Module
 =========================
 
 
-.. image:: https://img.shields.io/travis/napalm255/ansible-vmware_drssvg
+.. image:: https://img.shields.io/travis/napalm255/ansible-vmware_drs.svg
         :target: https://travis-ci.org/napalm255/ansible-vmware_drs
 
 .. image:: https://readthedocs.org/projects/ansible-vmware_drs/badge/?version=latest
