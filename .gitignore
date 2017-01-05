@@ -4,6 +4,7 @@
 *.log
 dist/*
 build/*
+_build/*
 .tox/*
 .vagrant/*
 .ansible/*
