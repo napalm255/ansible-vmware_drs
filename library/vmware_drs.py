@@ -107,7 +107,7 @@ def main():
     # check dependencies
     for requirement in REQUIREMENTS:
         if not requirement:
-            module.fail_json(msg='%s not installed.' % ('requirement'))
+            module.fail_json(msg='%s not installed.' % (requirement))
 
     # initiate module
     results = {'failed': True, 'msg': 'something went wrong'}
