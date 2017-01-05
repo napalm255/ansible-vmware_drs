@@ -2,8 +2,11 @@
 *.pyc
 *.retry
 *.log
+dist/*
+build/*
 .tox/*
 .vagrant/*
 .ansible/*
 .cache/*
 .pylint.d/*
+*.egg*
