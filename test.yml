@@ -9,9 +9,10 @@
 
     - name: vmware drs
       vmware_drs:
-        datacenter: datacenter_name
-        cluster: cluster_name
-        user: username
-        password: password
-        vm_host_a: host1
-        vm_host_b: host2
+        hostname: "vcenter.example.com"
+        username: "username"
+        password: "password"
+        name: "hosta-hostb"
+        hosts:
+          - "hosta"
+          - "hostb"
