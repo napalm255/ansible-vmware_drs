@@ -2,6 +2,7 @@
 *.pyc
 *.retry
 *.log
+dev.yml
 dist/*
 build/*
 _build/*
