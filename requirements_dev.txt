@@ -10,4 +10,4 @@ flake8<3.0.0; python_version < '2.7'
 
 # Python 2.7+ Support
 pylint==1.6.4; python_version >= '2.7'
-flake8==3.2.1; python_version >= '2.7'
+flake8==3.3.0; python_version >= '2.7'
