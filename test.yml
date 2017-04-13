@@ -12,6 +12,7 @@
         hostname: "vcenter.example.com"
         username: "username"
         password: "password"
+        cluster: "cluster-name"
         name: "hosta-hostb"
         hosts:
           - "hosta"
