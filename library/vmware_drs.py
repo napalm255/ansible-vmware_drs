@@ -20,14 +20,16 @@
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
 """Ansible VMWare DRS Module."""
+from __future__ import absolute_import, unicode_literals
 
 DOCUMENTATION = '''
 ---
 module: vmware_drs
 author: "Brad Gibson, Richard Noble"
-version_added: "2.2"
+version_added: "2.3"
 short_description: Create VMWare DRS Rule
-requires: [ pyvmomi==6.5.0 ]
+requirements:
+    - pyvmomi
 description:
     - Create VMWare DRS Rule
 options:
@@ -73,8 +75,8 @@ options:
         required: false
         default: true
         description:
-            - Allows connection when SSL certificates are not valid. Set to
-            false when certificates are not trusted.
+            - Allows connection when SSL certificates are not valid.
+            - Set to false when certificates are not trusted.
 '''
 
 EXAMPLES = '''
@@ -109,7 +111,6 @@ EXAMPLES = '''
         - hosta
         - hostb
 '''
-# pylint: disable = wrong-import-position
 
 REQUIRED_MODULES = dict()
 try:
