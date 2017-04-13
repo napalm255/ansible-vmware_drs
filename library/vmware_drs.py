@@ -174,6 +174,7 @@ class VMWareDRS(object):
 
     def _get_obj(self, content, vimtype, name=None):
         """Get object."""
+        # pylint: disable = no-self-use, unused-argument
         return content.viewManager.CreateContainerView(
             content.rootFolder, [vimtype], recursive=True).view
 
