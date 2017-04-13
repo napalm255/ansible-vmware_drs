@@ -63,6 +63,10 @@ options:
             - absent
         description:
             - Create or delete the DRS rule.
+    cluster:
+        required: true
+        description:
+            - The cluster name where the DRS rule will be created.
     name:
         required: false
         description:
@@ -303,8 +307,8 @@ def main():
             password=dict(type='str', required=True),
             gather_facts=dict(type='bool', default=False),
             state=dict(type='str', default='present'),
-            name=dict(type='str', required=False),
             cluster=dict(type='str', required=True),
+            name=dict(type='str', required=False),
             hosts=dict(type='list', required=True),
             validate_certs=dict(type='bool', default=True),
         ),
