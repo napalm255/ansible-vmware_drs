@@ -1,0 +1,153 @@
+.. _vmware_drs:
+
+
+vmware_drs - Create VMWare DRS Rule
++++++++++++++++++++++++++++++++++++
+
+.. versionadded:: 2.3
+
+
+.. contents::
+   :local:
+   :depth: 2
+
+
+Synopsis
+--------
+
+* Create VMWare DRS Rule
+
+
+Requirements (on host that executes module)
+-------------------------------------------
+
+  * pyvmomi
+
+
+Options
+-------
+
+.. raw:: html
+
+    <table border=1 cellpadding=4>
+    <tr>
+    <th class="head">parameter</th>
+    <th class="head">required</th>
+    <th class="head">default</th>
+    <th class="head">choices</th>
+    <th class="head">comments</th>
+    </tr>
+            <tr>
+    <td>gather_facts<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>Return list of DRS rules for hosts.</div></td></tr>
+            <tr>
+    <td>hostname<br/><div style="font-size: small;"></div></td>
+    <td>yes</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>The hostname or IP address of the vSphere vCenter.</div></td></tr>
+            <tr>
+    <td>hosts<br/><div style="font-size: small;"></div></td>
+    <td>yes</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>A list of hosts for the DRS rule.</div></td></tr>
+            <tr>
+    <td>name<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>The name of the DRS rule to create or query.</div></td></tr>
+            <tr>
+    <td>password<br/><div style="font-size: small;"></div></td>
+    <td>yes</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>The password of the vSphere vCenter.</div></td></tr>
+            <tr>
+    <td>port<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td>443</td>
+        <td><ul></ul></td>
+        <td><div>The port to connect to vSphere vCenter.</div></td></tr>
+            <tr>
+    <td>state<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td>present</td>
+        <td><ul><li>present</li><li>absent</li></ul></td>
+        <td><div>Create or delete the DRS rule.</div></td></tr>
+            <tr>
+    <td>username<br/><div style="font-size: small;"></div></td>
+    <td>yes</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>The username of the vSphere vCenter.</div></td></tr>
+            <tr>
+    <td>validate_certs<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td>True</td>
+        <td><ul></ul></td>
+        <td><div>Allows connection when SSL certificates are not valid.</div><div>Set to false when certificates are not trusted.</div></td></tr>
+        </table>
+    </br>
+
+
+
+Examples
+--------
+
+ ::
+
+    # gather facts
+    - vmware_drs:
+        hostname: "vcenter.example.com"
+        username: "vcuser"
+        password: "vcpass"
+        gather_facts: true
+        hosts:
+            - hosta
+            - hostb
+    
+    # create vmware drs rule
+    - vmware_drs:
+        hostname: "vcenter.example.com"
+        username: "vcuser"
+        password: "vcpass"
+        name: "hosta-hostb"
+        hosts:
+            - hosta
+            - hostb
+    
+    # delete vmware drs rule
+    - vmware_drs:
+        hostname: "vcenter.example.com"
+        username: "vcuser"
+        password: "vcpass"
+        state: "absent"
+        name: "hosta-hostb"
+        hosts:
+            - hosta
+            - hostb
+
+
+
+
+
+Status
+~~~~~~
+
+This module is flagged as **preview** which means that it is not guaranteed to have a backwards compatible interface.
+
+
+Support
+~~~~~~~
+
+This module is community maintained without core committer oversight.
+
+For more information on what this means please read :doc:`modules_support`
+
+
+For help in developing on modules, should you be so inclined, please read :doc:`community`, :doc:`dev_guide/developing_test_pr` and :doc:`dev_guide/developing_modules`.
