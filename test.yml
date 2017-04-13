@@ -2,6 +2,7 @@
 - hosts: localhost
   connection: local
   gather_facts: false
+  ignore_errors: true
 
   tasks:
     - name: Debug
