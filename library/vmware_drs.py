@@ -142,10 +142,6 @@ class VMWareDRS(object):
         for arg in self.module.params:
             setattr(self.arg, arg, self.module.params[arg])
 
-        # redact password for security
-        if 'password' in module.params:
-            module.params['password'] = 'REDACTED'
-
         self.results = {'changed': False,
                         'failed': False}
 
@@ -304,7 +300,7 @@ def main():
             hostname=dict(type='str', required=True),
             port=dict(type='int', default=443),
             username=dict(type='str', required=True),
-            password=dict(type='str', required=True),
+            password=dict(type='str', required=True, no_log=True),
             gather_facts=dict(type='bool', default=False),
             state=dict(type='str', default='present'),
             cluster=dict(type='str', required=True),
