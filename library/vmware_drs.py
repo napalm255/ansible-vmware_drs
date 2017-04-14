@@ -80,8 +80,9 @@ options:
         description:
             - A list of hosts for the DRS rule.
     keeptogether:
-        required: true
+        required: false
         description:
+            - Required when state is set to C(present).
             - Set to C(true) will create an Affinity Rule.
             - Set to C(false) will create an AntiAffinity Rule.
     validate_certs:
@@ -109,6 +110,7 @@ EXAMPLES = '''
     username: "vcuser"
     password: "vcpass"
     name: "hosta-hostb"
+    keeptogether: false
     hosts:
         - hosta
         - hostb
@@ -215,10 +217,13 @@ class VMWareDRS(object):
         """Create and return config_spec for creation."""
         if not name:
             name = self.arg.name
-        rule = vim.cluster.AntiAffinityRuleSpec(vm=vms,
-                                                enabled=enabled,
-                                                mandatory=mandatory,
-                                                name=name)
+        if self.arg.keeptogether:
+            rule_type = 'AffinityRuleSpec'
+        else:
+            rule_type = 'AntiAffinityRuleSpec'
+
+        rulespec = getattr(vim.cluster, rule_type)
+        rule = rulespec(vm=vms, enabled=enabled, mandatory=mandatory, name=name)
         rule_spec = vim.cluster.RuleSpec(info=rule, operation='add')
         return vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
 
@@ -328,7 +333,7 @@ def main():
             cluster=dict(type='str', required=True),
             name=dict(type='str', required=False),
             hosts=dict(type='list', required=True),
-            keeptogether=dict(type='bool', required=True),
+            keeptogether=dict(type='bool', required=False),
             validate_certs=dict(type='bool', default=True),
         ),
         supports_check_mode=True
