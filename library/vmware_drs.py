@@ -181,12 +181,15 @@ class VMWareDRS(object):
         """Find drs rules for vm and return object."""
         # pylint: disable = no-self-use
         rules_obj = cluster.FindRulesForVm(vm_obj)
+        exclude_properties = ['dynamicType', 'dynamicProperty', 'vm']
         rules = list()
         for rule in rules_obj:
-            rules.append({'name': rule.name, 'key': rule.key,
-                          'mandatory': rule.mandatory, 'uuid': rule.ruleUuid,
-                          'inCompliance': rule.inCompliance,
-                          'status': rule.status, 'enabled': rule.enabled})
+            rule_obj = dict()
+            for attr, value in vars(rule).iteritems():
+                if attr in exclude_properties:
+                    continue
+                rule_obj[attr] = value
+            rules.append(rule_obj)
         return rules
 
     def _get_vm(self, name):
