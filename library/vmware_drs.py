@@ -25,7 +25,9 @@ from __future__ import absolute_import, unicode_literals
 DOCUMENTATION = '''
 ---
 module: vmware_drs
-author: "Brad Gibson, Richard Noble"
+author:
+    - Brad Gibson (@napalm255)
+    - Richard Noble (@nobler1050)
 version_added: "2.3"
 short_description: Create VMWare DRS Rule
 requirements:
@@ -116,17 +118,15 @@ EXAMPLES = '''
         - hostb
 '''
 
+# pylint: disable = wrong-import-position, line-too-long
+from ansible.module_utils.basic import AnsibleModule  # noqa
+from ansible.module_utils.vmware import connect_to_api, gather_vm_facts  # noqa
+from ansible.module_utils.vmware import find_vm_by_name, find_cluster_by_name  # noqa
+from ansible.module_utils.vmware import wait_for_task  # noqa
+
 REQUIRED_MODULES = dict()
 try:
-    from ansible.module_utils.basic import AnsibleModule  # noqa
-    REQUIRED_MODULES['ansible'] = True
-except ImportError:
-    REQUIRED_MODULES['ansible'] = False
-
-try:
     from pyVmomi import vim
-    from pyVim.connect import SmartConnect, Disconnect
-    from pyVim.task import WaitForTask
     REQUIRED_MODULES['pyvmomi'] = True
 except ImportError:
     REQUIRED_MODULES['pyvmomi'] = False
@@ -143,35 +143,26 @@ class VMWareDRS(object):
             setattr(self.arg, arg, self.module.params[arg])
 
         self.results = {'changed': False,
-                        'failed': False}
+                        'failed': False,
+                        'ansible_facts': dict()}
 
         self.data = dict()
-
-        self.vcenter = None
+        self.content = self._connect()
+        self.vms = None
+        self.cluster = None
 
     def __enter__(self):
-        """Initiate connection."""
-        self.vcenter = self._connect()
+        """Enter."""
         return self
 
     def __exit__(self, type, value, traceback):
-        """Disconnect."""
+        """Exit."""
         # pylint: disable=redefined-builtin
-        Disconnect(self.vcenter)
         return
 
     def _connect(self):
         """Connect to vCenter."""
-        try:
-            vcenter = SmartConnect(host=self.arg.hostname,
-                                   port=self.arg.port,
-                                   user=self.arg.username,
-                                   pwd=self.arg.password)
-        except IOError:
-            self.results['msg'] = "error connecting to vcenter"
-            self.module.fail_json(**self.results)
-
-        return vcenter
+        return connect_to_api(self.module)
 
     def _get_obj(self, content, vimtype, name=None):
         """Get object."""
@@ -182,24 +173,32 @@ class VMWareDRS(object):
     def delete(self):
         """Delete VMWare DRS rule."""
         deleted = False
-        cluster = self.data['cluster_objs'][self.arg.cluster]
-        key = self.data['keys'][self.arg.name]
+        keys = set()
+        for vm_info in self.vms:
+            for rule in vm_info['rules']:
+                if 'key' in rule:
+                    keys.add(str(rule['key']))
+        key = int(''.join(keys))
+
         rule_spec = vim.cluster.RuleSpec(removeKey=key, operation='remove')
         config_spec = vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
         try:
-            WaitForTask(cluster.ReconfigureEx(config_spec, modify=True))
+            wait_for_task(self.cluster.ReconfigureEx(config_spec, modify=True))
         except vim.fault.NoPermission:
             self.module.fail_json(msg="permission denied")
 
         if not self.check():
             deleted = True
+
         return deleted
 
     def create(self):
         """Create VMware DRS rule."""
         created = False
-        vms = self.data['vms']
-        cluster = self.data['cluster_objs'][self.arg.cluster]
+        vms = list()
+        for vm_info in self.vms:
+            vms.append(vm_info['vm_obj'])
+
         rule = vim.cluster.AntiAffinityRuleSpec(vm=vms,
                                                 enabled=True,
                                                 mandatory=True,
@@ -207,12 +206,13 @@ class VMWareDRS(object):
         rule_spec = vim.cluster.RuleSpec(info=rule, operation='add')
         config_spec = vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
         try:
-            WaitForTask(cluster.ReconfigureEx(config_spec, modify=True))
+            wait_for_task(self.cluster.ReconfigureEx(config_spec, modify=True))
         except vim.fault.NoPermission:
             self.module.fail_json(msg="permission denied")
 
         if self.check():
             created = True
+
         return created
 
     def check(self):
@@ -224,15 +224,17 @@ class VMWareDRS(object):
         hosts_in_rule = False
         rules = 0
         hosts = list()
-        for name, vm_info in self.results['ansible_facts']['vms'].iteritems():
-            hosts.append(name)
-            for _, value in vm_info['cluster'].iteritems():
-                for rule in value['rules']:
-                    if self.arg.name == rule['name']:
-                        rules += 1
+        for host in self.vms:
+            hosts.append(host['name'])
+            for rule in host['rules']:
+                if self.arg.name == rule['name']:
+                    rules += 1
 
         if hosts != self.arg.hosts:
-            self.module.fail_json(msg="vm hosts not all found.")
+            self.module.fail_json(msg='host(s) not found')
+
+        if not self.cluster:
+            self.module.fail_json(msg='cluster not found')
 
         if rules > 0:
             rule_exists = True
@@ -245,52 +247,50 @@ class VMWareDRS(object):
 
         return check_pass
 
+    def _get_vm(self, name):
+        """Find vm by name and return object."""
+        return find_vm_by_name(self.content, name, self.cluster)
+
+    def _get_cluster(self, name):
+        """Find cluster by name and return object."""
+        return find_cluster_by_name(self.content, name)
+
+    def _get_drs_rules(self, cluster, vm_obj):
+        """Find drs rules for vm and return object."""
+        # pylint: disable = no-self-use
+        rules_obj = cluster.FindRulesForVm(vm_obj)
+        rules = list()
+        for rule in rules_obj:
+            rules.append({'name': rule.name, 'key': rule.key,
+                          'mandatory': rule.mandatory, 'uuid': rule.ruleUuid,
+                          'inCompliance': rule.inCompliance,
+                          'satus': rule.status, 'enabled': rule.enabled})
+        return rules
+
+    def _get_facts(self, vm_obj):
+        """Gather facts about vm and return object."""
+        return gather_vm_facts(self.content, vm_obj)
+
     def gather_facts(self):
         """Gather facts."""
-        # create facts dict
-        self.results['ansible_facts'] = dict()
-        content = self.vcenter.RetrieveContent()
-
-        # initialize resources
-        cluster_view = self._get_obj(content, vim.ComputeResource)
-        vm_view = self._get_obj(content, vim.VirtualMachine)
-
-        # build vms and drs rules lists
-        vms = dict()
-        self.data['cluster_objs'] = dict()
-        self.data['vms'] = list()
-        self.data['keys'] = dict()
+        vms = list()
+        self.results['ansible_facts']['vms'] = list()
+        cluster = self._get_cluster(self.arg.cluster)
+        self.cluster = cluster
         for host in self.arg.hosts:
-            vms[host] = {'host': None, 'cluster': dict()}
-
-        for vmobj in vm_view:
-            try:
-                vm_name = vmobj.summary.config.name
-                vm_host = vmobj.summary.runtime.host.name
-                if vm_name in self.arg.hosts:
-                    vms[vm_name]['host'] = vm_host
-                    self.data['vms'].append(vmobj)
-                else:
-                    raise Exception
-            # pylint: disable=broad-except
-            except Exception:
+            vm_obj = self._get_vm(host)
+            if not vm_obj:
                 continue
-
-            for cluster in cluster_view:
-                if cluster.name != self.arg.cluster:
-                    continue
-                self.data['cluster_objs'][cluster.name] = cluster
-                try:
-                    rules_fnd = cluster.FindRulesForVm(vmobj)
-                except AttributeError:
-                    rules_fnd = list()
-                rules = list()
-                for rule in rules_fnd:
-                    rules.append({'name': rule.name, 'key': rule.key})
-                    self.data['keys'][rule.name] = rule.key
-                vms[vm_name]['cluster'][cluster.name] = {'rules': rules}
-        self.results['ansible_facts']['vms'] = vms
-        return
+            vm_facts = self._get_facts(vm_obj)
+            vm_rules = self._get_drs_rules(cluster, vm_obj)
+            ansible_facts = {'name': host, 'facts': vm_facts,
+                             'cluster': cluster.name, 'rules': vm_rules}
+            self.results['ansible_facts']['vms'].append(ansible_facts)
+            # add objects to pass along
+            ansible_facts_objs = dict(ansible_facts)
+            ansible_facts_objs.update({'vm_obj': vm_obj})
+            vms.append(ansible_facts_objs)
+        self.vms = vms
 
 
 def main():
