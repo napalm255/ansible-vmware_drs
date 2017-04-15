@@ -25,7 +25,9 @@ from __future__ import absolute_import, unicode_literals
 DOCUMENTATION = '''
 ---
 module: vmware_drs
-author: "Brad Gibson, Richard Noble"
+author:
+    - Brad Gibson (@napalm255)
+    - Richard Noble (@nobler1050)
 version_added: "2.3"
 short_description: Create VMWare DRS Rule
 requirements:
@@ -55,6 +57,7 @@ options:
         default: false
         description:
             - Return list of DRS rules for hosts.
+            - If set to C(true), fact gather only.
     state:
         required: false
         default: present
@@ -71,10 +74,17 @@ options:
         required: false
         description:
             - The name of the DRS rule to create or query.
+            - Required when gather_facts is C(false)
     hosts:
         required: true
         description:
             - A list of hosts for the DRS rule.
+    keeptogether:
+        required: false
+        description:
+            - Required when state is set to C(present).
+            - Set to C(true) will create an Affinity Rule.
+            - Set to C(false) will create an AntiAffinity Rule.
     validate_certs:
         required: false
         default: true
@@ -100,6 +110,7 @@ EXAMPLES = '''
     username: "vcuser"
     password: "vcpass"
     name: "hosta-hostb"
+    keeptogether: false
     hosts:
         - hosta
         - hostb
@@ -116,17 +127,15 @@ EXAMPLES = '''
         - hostb
 '''
 
+# pylint: disable = wrong-import-position
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.vmware import connect_to_api, gather_vm_facts
+from ansible.module_utils.vmware import find_vm_by_name, find_cluster_by_name
+from ansible.module_utils.vmware import wait_for_task
+
 REQUIRED_MODULES = dict()
 try:
-    from ansible.module_utils.basic import AnsibleModule  # noqa
-    REQUIRED_MODULES['ansible'] = True
-except ImportError:
-    REQUIRED_MODULES['ansible'] = False
-
-try:
     from pyVmomi import vim
-    from pyVim.connect import SmartConnect, Disconnect
-    from pyVim.task import WaitForTask
     REQUIRED_MODULES['pyvmomi'] = True
 except ImportError:
     REQUIRED_MODULES['pyvmomi'] = False
@@ -143,77 +152,115 @@ class VMWareDRS(object):
             setattr(self.arg, arg, self.module.params[arg])
 
         self.results = {'changed': False,
-                        'failed': False}
+                        'failed': False,
+                        'ansible_facts': dict()}
 
         self.data = dict()
-
-        self.vcenter = None
+        self.content = self._connect()
+        self.vms = None
+        self.cluster = None
 
     def __enter__(self):
-        """Initiate connection."""
-        self.vcenter = self._connect()
+        """Enter."""
         return self
 
     def __exit__(self, type, value, traceback):
-        """Disconnect."""
+        """Exit."""
         # pylint: disable=redefined-builtin
-        Disconnect(self.vcenter)
         return
 
     def _connect(self):
         """Connect to vCenter."""
-        try:
-            vcenter = SmartConnect(host=self.arg.hostname,
-                                   port=self.arg.port,
-                                   user=self.arg.username,
-                                   pwd=self.arg.password)
-        except IOError:
-            self.results['msg'] = "error connecting to vcenter"
-            self.module.fail_json(**self.results)
+        return connect_to_api(self.module)
 
-        return vcenter
+    def _get_cluster(self, name):
+        """Find cluster by name and return object."""
+        return find_cluster_by_name(self.content, name)
 
-    def _get_obj(self, content, vimtype, name=None):
-        """Get object."""
-        # pylint: disable = no-self-use, unused-argument
-        return content.viewManager.CreateContainerView(
-            content.rootFolder, [vimtype], recursive=True).view
+    def _get_drs_rules(self, cluster, vm_obj):
+        """Find drs rules for vm and return object."""
+        # pylint: disable = no-self-use
+        rules_obj = cluster.FindRulesForVm(vm_obj)
+        exclude_properties = ['dynamicType', 'dynamicProperty', 'vm']
+        rules = list()
+        for rule in rules_obj:
+            rule_obj = dict()
+            for attr, value in vars(rule).iteritems():
+                if attr in exclude_properties:
+                    continue
+                rule_obj[attr] = value
+            rules.append(rule_obj)
+        return rules
 
-    def delete(self):
-        """Delete VMWare DRS rule."""
-        deleted = False
-        cluster = self.data['cluster_objs'][self.arg.cluster]
-        key = self.data['keys'][self.arg.name]
-        rule_spec = vim.cluster.RuleSpec(removeKey=key, operation='remove')
-        config_spec = vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
-        try:
-            WaitForTask(cluster.ReconfigureEx(config_spec, modify=True))
-        except vim.fault.NoPermission:
-            self.module.fail_json(msg="permission denied")
+    def _get_vm(self, name):
+        """Find vm by name and return object."""
+        return find_vm_by_name(self.content, name, self.cluster)
 
-        if not self.check():
-            deleted = True
-        return deleted
+    def _get_facts(self, vm_obj):
+        """Gather facts about vm and return object."""
+        return gather_vm_facts(self.content, vm_obj)
 
-    def create(self):
-        """Create VMware DRS rule."""
-        created = False
-        vms = self.data['vms']
-        cluster = self.data['cluster_objs'][self.arg.cluster]
-        rule = vim.cluster.AntiAffinityRuleSpec(vm=vms,
-                                                enabled=True,
-                                                mandatory=True,
-                                                name=self.arg.name)
+    def _get_vm_list(self):
+        """Get vm names and return list."""
+        vms = list()
+        for vm_info in self.vms:
+            vms.append(vm_info['vm_obj'])
+        return vms
+
+    def _get_rule_key(self):
+        """Get keys and return key."""
+        keys = set()
+        for vm_info in self.vms:
+            for rule in vm_info['rules']:
+                if 'key' in rule:
+                    keys.add(str(rule['key']))
+        return int(''.join(keys))
+
+    def _get_create_spec(self, vms, enabled=True, mandatory=True, name=None):
+        """Create and return config_spec for creation."""
+        if not name:
+            name = self.arg.name
+        if self.arg.keeptogether:
+            rule_type = 'AffinityRuleSpec'
+        else:
+            rule_type = 'AntiAffinityRuleSpec'
+
+        rulespec = getattr(vim.cluster, rule_type)
+        rule = rulespec(vm=vms, enabled=enabled, mandatory=mandatory, name=name)
         rule_spec = vim.cluster.RuleSpec(info=rule, operation='add')
-        config_spec = vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
-        try:
-            WaitForTask(cluster.ReconfigureEx(config_spec, modify=True))
-        except vim.fault.NoPermission:
-            self.module.fail_json(msg="permission denied")
+        return vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
 
-        if self.check():
-            created = True
-        return created
+    def _get_delete_spec(self, key):
+        """Create and return config_spec for deletion."""
+        # pylint: disable = no-self-use
+        rule_spec = vim.cluster.RuleSpec(removeKey=key, operation='remove')
+        return vim.cluster.ConfigSpecEx(rulesSpec=[rule_spec])
+
+    def gather_facts(self):
+        """Gather facts."""
+        vms = list()
+        self.results['ansible_facts']['vms'] = list()
+
+        self.cluster = self._get_cluster(self.arg.cluster)
+        if not self.cluster:
+            self.module.fail_json(msg='cluster not found: %s' % self.arg.cluster)
+
+        for host in self.arg.hosts:
+            vm_obj = self._get_vm(host)
+            if not vm_obj:
+                self.module.fail_json(msg='host not found: %s' % host)
+            vm_facts = self._get_facts(vm_obj)
+            vm_rules = self._get_drs_rules(self.cluster, vm_obj)
+            ansible_facts = {'name': host,
+                             'facts': vm_facts,
+                             'cluster': self.cluster.name,
+                             'rules': vm_rules}
+            self.results['ansible_facts']['vms'].append(ansible_facts)
+            # add objects to pass along
+            ansible_facts_objs = dict(ansible_facts)
+            ansible_facts_objs.update({'vm_obj': vm_obj})
+            vms.append(ansible_facts_objs)
+        self.vms = vms
 
     def check(self):
         """Check if rule exists and all hosts are members."""
@@ -224,15 +271,17 @@ class VMWareDRS(object):
         hosts_in_rule = False
         rules = 0
         hosts = list()
-        for name, vm_info in self.results['ansible_facts']['vms'].iteritems():
-            hosts.append(name)
-            for _, value in vm_info['cluster'].iteritems():
-                for rule in value['rules']:
-                    if self.arg.name == rule['name']:
-                        rules += 1
+        for host in self.vms:
+            hosts.append(host['name'])
+            for rule in host['rules']:
+                if self.arg.name == rule['name']:
+                    rules += 1
+
+        if not self.cluster:
+            self.module.fail_json(msg='cluster not found')
 
         if hosts != self.arg.hosts:
-            self.module.fail_json(msg="vm hosts not all found.")
+            self.module.fail_json(msg='host(s) not found')
 
         if rules > 0:
             rule_exists = True
@@ -245,52 +294,33 @@ class VMWareDRS(object):
 
         return check_pass
 
-    def gather_facts(self):
-        """Gather facts."""
-        # create facts dict
-        self.results['ansible_facts'] = dict()
-        content = self.vcenter.RetrieveContent()
+    def delete(self):
+        """Delete VMWare DRS rule."""
+        deleted = False
+        key = self._get_rule_key()
+        try:
+            wait_for_task(self.cluster.ReconfigureEx(self._get_delete_spec(key),
+                                                     modify=True))
+        except vim.fault.NoPermission:
+            self.module.fail_json(msg="permission denied")
 
-        # initialize resources
-        cluster_view = self._get_obj(content, vim.ComputeResource)
-        vm_view = self._get_obj(content, vim.VirtualMachine)
+        if not self.check():
+            deleted = True
+        return deleted
 
-        # build vms and drs rules lists
-        vms = dict()
-        self.data['cluster_objs'] = dict()
-        self.data['vms'] = list()
-        self.data['keys'] = dict()
-        for host in self.arg.hosts:
-            vms[host] = {'host': None, 'cluster': dict()}
+    def create(self):
+        """Create VMware DRS rule."""
+        created = False
+        vms = self._get_vm_list()
+        try:
+            wait_for_task(self.cluster.ReconfigureEx(self._get_create_spec(vms),
+                                                     modify=True))
+        except vim.fault.NoPermission:
+            self.module.fail_json(msg="permission denied")
 
-        for vmobj in vm_view:
-            try:
-                vm_name = vmobj.summary.config.name
-                vm_host = vmobj.summary.runtime.host.name
-                if vm_name in self.arg.hosts:
-                    vms[vm_name]['host'] = vm_host
-                    self.data['vms'].append(vmobj)
-                else:
-                    raise Exception
-            # pylint: disable=broad-except
-            except Exception:
-                continue
-
-            for cluster in cluster_view:
-                if cluster.name != self.arg.cluster:
-                    continue
-                self.data['cluster_objs'][cluster.name] = cluster
-                try:
-                    rules_fnd = cluster.FindRulesForVm(vmobj)
-                except AttributeError:
-                    rules_fnd = list()
-                rules = list()
-                for rule in rules_fnd:
-                    rules.append({'name': rule.name, 'key': rule.key})
-                    self.data['keys'][rule.name] = rule.key
-                vms[vm_name]['cluster'][cluster.name] = {'rules': rules}
-        self.results['ansible_facts']['vms'] = vms
-        return
+        if self.check():
+            created = True
+        return created
 
 
 def main():
@@ -306,6 +336,7 @@ def main():
             cluster=dict(type='str', required=True),
             name=dict(type='str', required=False),
             hosts=dict(type='list', required=True),
+            keeptogether=dict(type='bool', required=False),
             validate_certs=dict(type='bool', default=True),
         ),
         supports_check_mode=True

@@ -38,11 +38,17 @@ Options
     <th class="head">comments</th>
     </tr>
             <tr>
+    <td>cluster<br/><div style="font-size: small;"></div></td>
+    <td>yes</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>The cluster name where the DRS rule will be created.</div></td></tr>
+            <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>Return list of DRS rules for hosts.</div></td></tr>
+        <td><div>Return list of DRS rules for hosts.</div><div>If set to <code>true</code>, fact gather only.</div></td></tr>
             <tr>
     <td>hostname<br/><div style="font-size: small;"></div></td>
     <td>yes</td>
@@ -56,11 +62,17 @@ Options
         <td><ul></ul></td>
         <td><div>A list of hosts for the DRS rule.</div></td></tr>
             <tr>
+    <td>keeptogether<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity Rule.</div><div>Set to <code>false</code> will create an AntiAffinity Rule.</div></td></tr>
+            <tr>
     <td>name<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>The name of the DRS rule to create or query.</div></td></tr>
+        <td><div>The name of the DRS rule to create or query.</div><div>Required when gather_facts is <code>false</code></div></td></tr>
             <tr>
     <td>password<br/><div style="font-size: small;"></div></td>
     <td>yes</td>
@@ -117,6 +129,7 @@ Examples
         username: "vcuser"
         password: "vcpass"
         name: "hosta-hostb"
+        keeptogether: false
         hosts:
             - hosta
             - hostb
