@@ -159,6 +159,8 @@ class VMWareDRS(object):
         self.content = self._connect()
         self.vms = None
         self.cluster = None
+        self.rule_exists = False
+        self.hosts_in_rule = False
 
     def __enter__(self):
         """Enter."""
@@ -207,14 +209,14 @@ class VMWareDRS(object):
             vms.append(vm_info['vm_obj'])
         return vms
 
-    def _get_rule_key(self):
-        """Get keys and return key."""
+    def _get_rule_keys(self):
+        """Get keys and return list of keys."""
         keys = set()
         for vm_info in self.vms:
             for rule in vm_info['rules']:
-                if 'key' in rule:
-                    keys.add(str(rule['key']))
-        return int(''.join(keys))
+                if rule['name'] == self.arg.name:
+                    keys.add(rule['key'])
+        return keys
 
     def _get_create_spec(self, vms, enabled=True, mandatory=True, name=None):
         """Create and return config_spec for creation."""
@@ -264,45 +266,38 @@ class VMWareDRS(object):
 
     def check(self):
         """Check if rule exists and all hosts are members."""
-        check_pass = False
+        exists = False
         self.gather_facts()
 
-        rule_exists = False
-        hosts_in_rule = False
         rules = 0
         hosts = list()
         for host in self.vms:
-            hosts.append(host['name'])
             for rule in host['rules']:
                 if self.arg.name == rule['name']:
+                    hosts.append(host['name'])
                     rules += 1
 
-        if not self.cluster:
-            self.module.fail_json(msg='cluster not found')
-
-        if hosts != self.arg.hosts:
-            self.module.fail_json(msg='host(s) not found')
-
         if rules > 0:
-            rule_exists = True
+            self.rule_exists = True
 
-        if rules == len(hosts):
-            hosts_in_rule = True
+        if hosts == self.arg.hosts:
+            self.hosts_in_rule = True
 
-        if rule_exists and hosts_in_rule:
-            check_pass = True
+        if self.rule_exists and self.hosts_in_rule:
+            exists = True
 
-        return check_pass
+        return exists
 
     def delete(self):
         """Delete VMWare DRS rule."""
         deleted = False
-        key = self._get_rule_key()
-        try:
-            wait_for_task(self.cluster.ReconfigureEx(self._get_delete_spec(key),
-                                                     modify=True))
-        except vim.fault.NoPermission:
-            self.module.fail_json(msg="permission denied")
+        keys = self._get_rule_keys()
+        for key in keys:
+            try:
+                wait_for_task(self.cluster.ReconfigureEx(self._get_delete_spec(key),
+                                                         modify=True))
+            except vim.fault.NoPermission:
+                self.module.fail_json(msg="permission denied")
 
         if not self.check():
             deleted = True
@@ -321,6 +316,16 @@ class VMWareDRS(object):
         if self.check():
             created = True
         return created
+
+    def update(self):
+        """Update VMWare DRS rule."""
+        updated = False
+        self.delete()
+        self.create()
+
+        if self.check():
+            updated = True
+        return updated
 
 
 def main():
@@ -365,12 +370,14 @@ def main():
 
     # normal run
     with VMWareDRS(module) as vcenter:
-        exists = vcenter.check()
+        vcenter.check()
         if module.params['state'] == 'present':
-            if not exists:
+            if not vcenter.rule_exists:
                 vcenter.results['changed'] = vcenter.create()
+            elif not vcenter.hosts_in_rule:
+                vcenter.results['changed'] = vcenter.update()
         if module.params['state'] == 'absent':
-            if exists:
+            if vcenter.rule_exists:
                 vcenter.results['changed'] = vcenter.delete()
         module.exit_json(**vcenter.results)
 
