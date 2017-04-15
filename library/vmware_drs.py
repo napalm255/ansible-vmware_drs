@@ -144,6 +144,8 @@ except ImportError:
 class VMWareDRS(object):
     """VMWare DRS Class."""
 
+    # pylint: disable = too-many-instance-attributes
+
     def __init__(self, module):
         """Init."""
         self.module = module
@@ -155,7 +157,6 @@ class VMWareDRS(object):
                         'failed': False,
                         'ansible_facts': dict()}
 
-        self.data = dict()
         self.content = self._connect()
         self.vms = None
         self.cluster = None
@@ -218,7 +219,7 @@ class VMWareDRS(object):
                     keys.add(rule['key'])
         return keys
 
-    def _get_create_spec(self, vms, enabled=True, mandatory=True, name=None):
+    def _get_create_spec(self, vms, enabled=True, mandatory=False, name=None):
         """Create and return config_spec for creation."""
         if not name:
             name = self.arg.name
