@@ -39,11 +39,6 @@ options:
         required: true
         description:
             - The hostname or IP address of the vSphere vCenter.
-    port:
-        required: false
-        default: 443
-        description:
-            - The port to connect to vSphere vCenter.
     username:
         required: true
         description:
@@ -354,7 +349,6 @@ def main():
     module = AnsibleModule(
         argument_spec=dict(
             hostname=dict(type='str', required=True),
-            port=dict(type='int', default=443),
             username=dict(type='str', required=True),
             password=dict(type='str', required=True, no_log=True),
             gather_facts=dict(type='bool', default=False),

@@ -86,12 +86,6 @@ Options
         <td><ul></ul></td>
         <td><div>The password of the vSphere vCenter.</div></td></tr>
             <tr>
-    <td>port<br/><div style="font-size: small;"></div></td>
-    <td>no</td>
-    <td>443</td>
-        <td><ul></ul></td>
-        <td><div>The port to connect to vSphere vCenter.</div></td></tr>
-            <tr>
     <td>state<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td>present</td>
