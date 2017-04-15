@@ -54,7 +54,7 @@ options:
             - The password of the vSphere vCenter.
     gather_facts:
         required: false
-        default: false
+        default: "false"
         choices:
             - true
             - false
@@ -94,6 +94,7 @@ options:
             - Use C(force_update) to change an existing rule.
     force_update:
         required: false
+        default: "false"
         choices:
             - true
             - false
@@ -102,7 +103,7 @@ options:
             - "Note: Task will always be marked as changed."
     validate_certs:
         required: false
-        default: true
+        default: "true"
         choices:
             - true
             - false

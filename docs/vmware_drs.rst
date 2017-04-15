@@ -46,13 +46,13 @@ Options
             <tr>
     <td>force_update<br/><div style="font-size: small;"></div></td>
     <td>no</td>
-    <td></td>
+    <td>false</td>
         <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Force an update.</div><div>Note: Task will always be marked as changed.</div></td></tr>
             <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
-    <td></td>
+    <td>false</td>
         <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Return list of DRS rules for hosts.</div><div>If set to <code>true</code>, fact gather only.</div></td></tr>
             <tr>
@@ -106,7 +106,7 @@ Options
             <tr>
     <td>validate_certs<br/><div style="font-size: small;"></div></td>
     <td>no</td>
-    <td>True</td>
+    <td>true</td>
         <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Allows connection when SSL certificates are not valid.</div><div>Set to false when certificates are not trusted.</div></td></tr>
         </table>
