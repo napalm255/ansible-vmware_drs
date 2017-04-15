@@ -25,6 +25,7 @@ Ansible VMWare DRS Module
 Features
 --------
 
-* Create and Delete supported
+* CRUD support
 * Idempotent
-* Check mode supported.
+* Check mode supported
+* Gather facts only mode
