@@ -89,7 +89,7 @@ options:
         required: false
         description:
             - Force an update.
-            - Note: Task will always be marked as changed.
+            - "Note: Task will always be marked as changed."
     validate_certs:
         required: false
         default: true
