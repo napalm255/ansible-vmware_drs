@@ -72,7 +72,7 @@ Options
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity Rule.</div><div>Set to <code>false</code> will create an AntiAffinity Rule.</div></td></tr>
+        <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity Rule.</div><div>Set to <code>false</code> will create an AntiAffinity Rule.</div><div>Use <code>force_update</code> to change an existing rule.</div></td></tr>
             <tr>
     <td>name<br/><div style="font-size: small;"></div></td>
     <td>no</td>
