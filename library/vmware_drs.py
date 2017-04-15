@@ -79,12 +79,17 @@ options:
         required: true
         description:
             - A list of hosts for the DRS rule.
-    keeptogether:
+    keep_together:
         required: false
         description:
             - Required when state is set to C(present).
             - Set to C(true) will create an Affinity Rule.
             - Set to C(false) will create an AntiAffinity Rule.
+    force_update:
+        required: false
+        description:
+            - Force an update.
+            - Note: Task will always be marked as changed.
     validate_certs:
         required: false
         default: true
@@ -110,7 +115,7 @@ EXAMPLES = '''
     username: "vcuser"
     password: "vcpass"
     name: "hosta-hostb"
-    keeptogether: false
+    keep_together: false
     hosts:
         - hosta
         - hostb
@@ -223,7 +228,7 @@ class VMWareDRS(object):
         """Create and return config_spec for creation."""
         if not name:
             name = self.arg.name
-        if self.arg.keeptogether:
+        if self.arg.keep_together:
             rule_type = 'AffinityRuleSpec'
         else:
             rule_type = 'AntiAffinityRuleSpec'
@@ -268,13 +273,15 @@ class VMWareDRS(object):
     def check(self):
         """Check if rule exists and all hosts are members."""
         exists = False
+        self.rule_exists = False
+        self.hosts_in_rule = False
         self.gather_facts()
 
         rules = 0
         hosts = list()
         for host in self.vms:
             for rule in host['rules']:
-                if self.arg.name == rule['name']:
+                if rule['name'] == self.arg.name:
                     hosts.append(host['name'])
                     rules += 1
 
@@ -286,7 +293,6 @@ class VMWareDRS(object):
 
         if self.rule_exists and self.hosts_in_rule:
             exists = True
-
         return exists
 
     def delete(self):
@@ -342,7 +348,8 @@ def main():
             cluster=dict(type='str', required=True),
             name=dict(type='str', required=False),
             hosts=dict(type='list', required=True),
-            keeptogether=dict(type='bool', required=False),
+            keep_together=dict(type='bool', required=False),
+            force_update=dict(type='bool', default=False),
             validate_certs=dict(type='bool', default=True),
         ),
         supports_check_mode=True
@@ -361,7 +368,7 @@ def main():
         with VMWareDRS(module) as vcenter:
             if not vcenter.check():
                 vcenter.results['changed'] = True
-            module.exit_json(**vcenter.results)
+            vcenter.module.exit_json(**vcenter.results)
 
     # gather facts
     if module.params['gather_facts']:
@@ -372,15 +379,17 @@ def main():
     # normal run
     with VMWareDRS(module) as vcenter:
         vcenter.check()
-        if module.params['state'] == 'present':
-            if not vcenter.rule_exists:
+        if vcenter.arg.state == 'present':
+            if vcenter.arg.force_update:
+                vcenter.results['changed'] = vcenter.update()
+            elif not vcenter.rule_exists:
                 vcenter.results['changed'] = vcenter.create()
             elif not vcenter.hosts_in_rule:
                 vcenter.results['changed'] = vcenter.update()
-        if module.params['state'] == 'absent':
+        elif vcenter.arg.state == 'absent':
             if vcenter.rule_exists:
                 vcenter.results['changed'] = vcenter.delete()
-        module.exit_json(**vcenter.results)
+        vcenter.module.exit_json(**vcenter.results)
 
     module.fail_json(**results)
 
