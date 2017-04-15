@@ -55,6 +55,9 @@ options:
     gather_facts:
         required: false
         default: false
+        choices:
+            - true
+            - false
         description:
             - Return list of DRS rules for hosts.
             - If set to C(true), fact gather only.
@@ -81,6 +84,9 @@ options:
             - A list of hosts for the DRS rule.
     keep_together:
         required: false
+        choices:
+            - true
+            - false
         description:
             - Required when state is set to C(present).
             - Set to C(true) will create an Affinity Rule.
@@ -88,12 +94,18 @@ options:
             - Use C(force_update) to change an existing rule.
     force_update:
         required: false
+        choices:
+            - true
+            - false
         description:
             - Force an update.
             - "Note: Task will always be marked as changed."
     validate_certs:
         required: false
         default: true
+        choices:
+            - true
+            - false
         description:
             - Allows connection when SSL certificates are not valid.
             - Set to false when certificates are not trusted.

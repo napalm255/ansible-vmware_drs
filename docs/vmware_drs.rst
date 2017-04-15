@@ -47,13 +47,13 @@ Options
     <td>force_update<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
-        <td><ul></ul></td>
+        <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Force an update.</div><div>Note: Task will always be marked as changed.</div></td></tr>
             <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
-        <td><ul></ul></td>
+        <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Return list of DRS rules for hosts.</div><div>If set to <code>true</code>, fact gather only.</div></td></tr>
             <tr>
     <td>hostname<br/><div style="font-size: small;"></div></td>
@@ -71,7 +71,7 @@ Options
     <td>keep_together<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
-        <td><ul></ul></td>
+        <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity Rule.</div><div>Set to <code>false</code> will create an AntiAffinity Rule.</div><div>Use <code>force_update</code> to change an existing rule.</div></td></tr>
             <tr>
     <td>name<br/><div style="font-size: small;"></div></td>
@@ -107,7 +107,7 @@ Options
     <td>validate_certs<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td>True</td>
-        <td><ul></ul></td>
+        <td><ul><li>True</li><li>False</li></ul></td>
         <td><div>Allows connection when SSL certificates are not valid.</div><div>Set to false when certificates are not trusted.</div></td></tr>
         </table>
     </br>
