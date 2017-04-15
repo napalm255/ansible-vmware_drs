@@ -85,6 +85,7 @@ options:
             - Required when state is set to C(present).
             - Set to C(true) will create an Affinity Rule.
             - Set to C(false) will create an AntiAffinity Rule.
+            - Use C(force_update) to change an existing rule.
     force_update:
         required: false
         description:
