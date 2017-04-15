@@ -48,7 +48,7 @@ Options
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>Force an update.</div><div>{u'Note': u'Task will always be marked as changed.'}</div></td></tr>
+        <td><div>Force an update.</div><div>Note: Task will always be marked as changed.</div></td></tr>
             <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
