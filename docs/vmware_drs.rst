@@ -44,6 +44,12 @@ Options
         <td><ul></ul></td>
         <td><div>The cluster name where the DRS rule will be created.</div></td></tr>
             <tr>
+    <td>force_update<br/><div style="font-size: small;"></div></td>
+    <td>no</td>
+    <td></td>
+        <td><ul></ul></td>
+        <td><div>Force an update.</div><div>{u'Note': u'Task will always be marked as changed.'}</div></td></tr>
+            <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
@@ -62,7 +68,7 @@ Options
         <td><ul></ul></td>
         <td><div>A list of hosts for the DRS rule.</div></td></tr>
             <tr>
-    <td>keeptogether<br/><div style="font-size: small;"></div></td>
+    <td>keep_together<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
@@ -129,7 +135,7 @@ Examples
         username: "vcuser"
         password: "vcpass"
         name: "hosta-hostb"
-        keeptogether: false
+        keep_together: false
         hosts:
             - hosta
             - hostb
