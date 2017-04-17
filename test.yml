@@ -4,17 +4,52 @@
   gather_facts: false
   ignore_errors: true
 
+  vars:
+    vcenter_hostname: vcenter.example.com
+    vcenter_user: username
+    vcenter_pass: password
+    vcenter_cluster: cluster-name
+    drs_name: DRS-RULE-NAME
+    drs_hosts:
+      host-a
+      host-b
+
   tasks:
     - name: Debug
       debug: var=inventory_hostname
 
-    - name: vmware drs
+    - name: Gather facts only
       vmware_drs:
-        hostname: "vcenter.example.com"
-        username: "username"
-        password: "password"
-        cluster: "cluster-name"
-        name: "hosta-hostb"
-        hosts:
-          - "hosta"
-          - "hostb"
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_pass }}"
+        cluster: "{{ vcenter_cluster }}"
+        hosts: "{{ drs_hosts }}"
+        gather_facts: true
+        validate_certs: false
+      register: results
+
+    - name: Delete DRS rule
+      vmware_drs:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_pass }}"
+        cluster: "{{ vcenter_cluster }}"
+        state: absent
+        name: "{{ drs_name }}"
+        hosts: "{{ drs_hosts }}"
+        validate_certs: false
+      register: results
+
+    - name: Create DRS rule
+      vmware_drs:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_pass }}"
+        cluster: "{{ vcenter_cluster }}"
+        state: present
+        name: "{{ drs_name }}"
+        hosts: "{{ drs_hosts }}"
+        keeptogether: false
+        validate_certs: false
+      register: results
