@@ -225,7 +225,7 @@ class VMWareDRS(object):
         return vms
 
     def _get_rule_keys(self):
-        """Get keys and return list of keys."""
+        """Get keys and return list."""
         keys = set()
         for vm_info in self.vms:
             for rule in vm_info['rules']:
