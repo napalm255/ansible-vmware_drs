@@ -37,7 +37,6 @@
         cluster: "{{ vcenter_cluster }}"
         state: absent
         name: "{{ drs_name }}"
-        hosts: "{{ drs_hosts }}"
         validate_certs: false
       register: results
 
@@ -50,6 +49,6 @@
         state: present
         name: "{{ drs_name }}"
         hosts: "{{ drs_hosts }}"
-        keeptogether: false
+        keep_together: false
         validate_certs: false
       register: results
