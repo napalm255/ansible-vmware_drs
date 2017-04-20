@@ -33,7 +33,7 @@ short_description: Create VMWare DRS Rule
 requirements:
     - pyvmomi
 description:
-    - Create VMWare DRS Rule
+    - Create VMWare DRS Rule.
 options:
     hostname:
         required: true
@@ -47,6 +47,10 @@ options:
         required: true
         description:
             - The password of the vSphere vCenter.
+    cluster:
+        required: true
+        description:
+            - The cluster name for the DRS rule.
     gather_facts:
         required: false
         default: "false"
@@ -54,8 +58,9 @@ options:
             - true
             - false
         description:
-            - Return list of DRS rules for hosts.
             - If set to C(true), fact gather only.
+            - Return rules defined on cluster.
+            - If hosts are defined, return hosts facts.
     state:
         required: false
         default: present
@@ -64,19 +69,16 @@ options:
             - absent
         description:
             - Create or delete the DRS rule.
-    cluster:
-        required: true
-        description:
-            - The cluster name where the DRS rule will be created.
     name:
         required: false
         description:
-            - The name of the DRS rule to create or query.
+            - The name of the DRS rule to manage.
             - Required when gather_facts is C(false)
     hosts:
-        required: true
+        required: false
         description:
             - A list of hosts for the DRS rule.
+            - Required when state is C(present)
     keep_together:
         required: false
         choices:
@@ -84,8 +86,8 @@ options:
             - false
         description:
             - Required when state is set to C(present).
-            - Set to C(true) will create an Affinity Rule.
-            - Set to C(false) will create an AntiAffinity Rule.
+            - Set to C(true) will create an Affinity rule.
+            - Set to C(false) will create an AntiAffinity rule.
             - Use C(force_update) to change an existing rule.
     force_update:
         required: false
@@ -95,6 +97,7 @@ options:
             - false
         description:
             - Force an update.
+            - Performs a delete and create.
             - "Note: Task will always be marked as changed."
     validate_certs:
         required: false
@@ -108,37 +111,45 @@ options:
 '''
 
 EXAMPLES = '''
-# gather facts
+# gather facts on cluster and hosts
 - vmware_drs:
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
+    cluster: "vcenter-cluster"
     gather_facts: true
     hosts:
         - hosta
         - hostb
+
+# gather facts on just cluster
+- vmware_drs:
+    hostname: "vcenter.example.com"
+    username: "vcuser"
+    password: "vcpass"
+    cluster: "vcenter-cluster"
+    gather_facts: true
 
 # create vmware drs rule
 - vmware_drs:
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
+    cluster: "vcenter-cluster"
     name: "hosta-hostb"
-    keep_together: false
     hosts:
         - hosta
         - hostb
+    keep_together: false
 
 # delete vmware drs rule
 - vmware_drs:
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
+    cluster: "vcenter-cluster"
     state: "absent"
     name: "hosta-hostb"
-    hosts:
-        - hosta
-        - hostb
 '''
 
 # pylint: disable = wrong-import-position
@@ -173,6 +184,7 @@ class VMWareDRS(object):
 
         self.content = self._connect()
         self.vms = None
+        self.rules = None
         self.cluster = None
         self.rule_exists = False
         self.hosts_in_rule = False
@@ -194,13 +206,24 @@ class VMWareDRS(object):
         """Find cluster by name and return object."""
         return find_cluster_by_name(self.content, name)
 
-    def _get_drs_rules(self, cluster, vm_obj):
-        """Find drs rules for vm and return object."""
-        # pylint: disable = no-self-use
-        rules_obj = cluster.FindRulesForVm(vm_obj)
+    def _get_drs_rules_by_cluster(self):
+        """Find drs rules of the cluster and return object."""
         exclude_properties = ['dynamicType', 'dynamicProperty', 'vm']
         rules = list()
-        for rule in rules_obj:
+        for rule in self.cluster.configuration.rule:
+            rule_obj = dict()
+            for attr, value in vars(rule).iteritems():
+                if attr in exclude_properties:
+                    continue
+                rule_obj[attr] = value
+            rules.append(rule_obj)
+        return rules
+
+    def _get_drs_rules_by_vm(self, vm_obj):
+        """Find drs rules of the cluster and return object."""
+        exclude_properties = ['dynamicType', 'dynamicProperty', 'vm']
+        rules = list()
+        for rule in self.cluster.FindRulesForVm(vm_obj):
             rule_obj = dict()
             for attr, value in vars(rule).iteritems():
                 if attr in exclude_properties:
@@ -224,14 +247,13 @@ class VMWareDRS(object):
             vms.append(vm_info['vm_obj'])
         return vms
 
-    def _get_rule_keys(self):
-        """Get keys and return list."""
-        keys = set()
-        for vm_info in self.vms:
-            for rule in vm_info['rules']:
-                if rule['name'] == self.arg.name:
-                    keys.add(rule['key'])
-        return keys
+    def _get_rule_key(self):
+        """Get key and return integer."""
+        key = int()
+        for rule in self.rules:
+            if rule['name'] == self.arg.name:
+                key = int(rule['key'])
+        return key
 
     def _get_create_spec(self, vms, enabled=True, mandatory=False, name=None):
         """Create and return config_spec for creation."""
@@ -256,21 +278,24 @@ class VMWareDRS(object):
     def gather_facts(self):
         """Gather facts."""
         vms = list()
+        self.results['ansible_facts']['cluster'] = dict()
         self.results['ansible_facts']['vms'] = list()
 
         self.cluster = self._get_cluster(self.arg.cluster)
         if not self.cluster:
             self.module.fail_json(msg='cluster not found: %s' % self.arg.cluster)
+        self.rules = self._get_drs_rules_by_cluster()
+        self.results['ansible_facts']['cluster']['name'] = self.cluster.name
+        self.results['ansible_facts']['cluster']['rules'] = self.rules
 
         for host in self.arg.hosts:
             vm_obj = self._get_vm(host)
             if not vm_obj:
                 self.module.fail_json(msg='host not found: %s' % host)
             vm_facts = self._get_facts(vm_obj)
-            vm_rules = self._get_drs_rules(self.cluster, vm_obj)
+            vm_rules = self._get_drs_rules_by_vm(vm_obj)
             ansible_facts = {'name': host,
                              'facts': vm_facts,
-                             'cluster': self.cluster.name,
                              'rules': vm_rules}
             self.results['ansible_facts']['vms'].append(ansible_facts)
             # add objects to pass along
@@ -286,16 +311,16 @@ class VMWareDRS(object):
         self.hosts_in_rule = False
         self.gather_facts()
 
-        rules = 0
+        for rule in self.rules:
+            if rule['name'] == self.arg.name:
+                self.rule_exists = True
+                break
+
         hosts = list()
         for host in self.vms:
             for rule in host['rules']:
                 if rule['name'] == self.arg.name:
                     hosts.append(host['name'])
-                    rules += 1
-
-        if rules > 0:
-            self.rule_exists = True
 
         if hosts == self.arg.hosts:
             self.hosts_in_rule = True
@@ -307,13 +332,12 @@ class VMWareDRS(object):
     def delete(self):
         """Delete VMWare DRS rule."""
         deleted = False
-        keys = self._get_rule_keys()
-        for key in keys:
-            try:
-                wait_for_task(self.cluster.ReconfigureEx(self._get_delete_spec(key),
-                                                         modify=True))
-            except vim.fault.NoPermission:
-                self.module.fail_json(msg="permission denied")
+        key = self._get_rule_key()
+        try:
+            wait_for_task(self.cluster.ReconfigureEx(self._get_delete_spec(key),
+                                                     modify=True))
+        except vim.fault.NoPermission:
+            self.module.fail_json(msg="permission denied")
 
         if not self.check():
             deleted = True
@@ -355,7 +379,7 @@ def main():
             state=dict(type='str', default='present'),
             cluster=dict(type='str', required=True),
             name=dict(type='str', required=False),
-            hosts=dict(type='list', required=True),
+            hosts=dict(type='list', default=list()),
             keep_together=dict(type='bool', required=False),
             force_update=dict(type='bool', default=False),
             validate_certs=dict(type='bool', default=True),
@@ -371,17 +395,17 @@ def main():
         if not requirement:
             module.fail_json(msg='%s not installed.' % (requirement))
 
+    # gather facts
+    if module.params['gather_facts']:
+        with VMWareDRS(module) as vcenter:
+            vcenter.gather_facts()
+            vcenter.module.exit_json(**vcenter.results)
+
     # check mode
     if module.check_mode:
         with VMWareDRS(module) as vcenter:
             if not vcenter.check():
                 vcenter.results['changed'] = True
-            vcenter.module.exit_json(**vcenter.results)
-
-    # gather facts
-    if module.params['gather_facts']:
-        with VMWareDRS(module) as vcenter:
-            vcenter.gather_facts()
             vcenter.module.exit_json(**vcenter.results)
 
     # normal run

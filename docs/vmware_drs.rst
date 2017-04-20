@@ -15,7 +15,7 @@ vmware_drs - Create VMWare DRS Rule
 Synopsis
 --------
 
-* Create VMWare DRS Rule
+* Create VMWare DRS Rule.
 
 
 Requirements (on host that executes module)
@@ -42,19 +42,19 @@ Options
     <td>yes</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>The cluster name where the DRS rule will be created.</div></td></tr>
+        <td><div>The cluster name for the DRS rule.</div></td></tr>
             <tr>
     <td>force_update<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td>false</td>
         <td><ul><li>True</li><li>False</li></ul></td>
-        <td><div>Force an update.</div><div>Note: Task will always be marked as changed.</div></td></tr>
+        <td><div>Force an update.</div><div>Performs a delete and create.</div><div>Note: Task will always be marked as changed.</div></td></tr>
             <tr>
     <td>gather_facts<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td>false</td>
         <td><ul><li>True</li><li>False</li></ul></td>
-        <td><div>Return list of DRS rules for hosts.</div><div>If set to <code>true</code>, fact gather only.</div></td></tr>
+        <td><div>If set to <code>true</code>, fact gather only.</div><div>Return rules defined on cluster.</div><div>If hosts are defined, return hosts facts.</div></td></tr>
             <tr>
     <td>hostname<br/><div style="font-size: small;"></div></td>
     <td>yes</td>
@@ -63,22 +63,22 @@ Options
         <td><div>The hostname or IP address of the vSphere vCenter.</div></td></tr>
             <tr>
     <td>hosts<br/><div style="font-size: small;"></div></td>
-    <td>yes</td>
+    <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>A list of hosts for the DRS rule.</div></td></tr>
+        <td><div>A list of hosts for the DRS rule.</div><div>Required when state is <code>present</code></div></td></tr>
             <tr>
     <td>keep_together<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
         <td><ul><li>True</li><li>False</li></ul></td>
-        <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity Rule.</div><div>Set to <code>false</code> will create an AntiAffinity Rule.</div><div>Use <code>force_update</code> to change an existing rule.</div></td></tr>
+        <td><div>Required when state is set to <code>present</code>.</div><div>Set to <code>true</code> will create an Affinity rule.</div><div>Set to <code>false</code> will create an AntiAffinity rule.</div><div>Use <code>force_update</code> to change an existing rule.</div></td></tr>
             <tr>
     <td>name<br/><div style="font-size: small;"></div></td>
     <td>no</td>
     <td></td>
         <td><ul></ul></td>
-        <td><div>The name of the DRS rule to create or query.</div><div>Required when gather_facts is <code>false</code></div></td></tr>
+        <td><div>The name of the DRS rule to manage.</div><div>Required when gather_facts is <code>false</code></div></td></tr>
             <tr>
     <td>password<br/><div style="font-size: small;"></div></td>
     <td>yes</td>
@@ -113,37 +113,45 @@ Examples
 
  ::
 
-    # gather facts
+    # gather facts on cluster and hosts
     - vmware_drs:
         hostname: "vcenter.example.com"
         username: "vcuser"
         password: "vcpass"
+        cluster: "vcenter-cluster"
         gather_facts: true
         hosts:
             - hosta
             - hostb
+    
+    # gather facts on just cluster
+    - vmware_drs:
+        hostname: "vcenter.example.com"
+        username: "vcuser"
+        password: "vcpass"
+        cluster: "vcenter-cluster"
+        gather_facts: true
     
     # create vmware drs rule
     - vmware_drs:
         hostname: "vcenter.example.com"
         username: "vcuser"
         password: "vcpass"
+        cluster: "vcenter-cluster"
         name: "hosta-hostb"
-        keep_together: false
         hosts:
             - hosta
             - hostb
+        keep_together: false
     
     # delete vmware drs rule
     - vmware_drs:
         hostname: "vcenter.example.com"
         username: "vcuser"
         password: "vcpass"
+        cluster: "vcenter-cluster"
         state: "absent"
         name: "hosta-hostb"
-        hosts:
-            - hosta
-            - hostb
 
 
 
