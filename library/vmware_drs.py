@@ -360,7 +360,8 @@ class VMWareDRS(object):
     def update(self):
         """Update VMWare DRS rule."""
         updated = False
-        self.delete()
+        if self.rule_exists:
+            self.delete()
         self.create()
 
         if self.check():
