@@ -316,8 +316,6 @@ class VMWareDRS(object):
                 self.rule_exists = True
                 break
 
-        # FIXME: if vm in rule, but manually added, does not get
-        #        updated
         vms = list()
         for vm_obj in self.vms:
             for rule in vm_obj['rules']:
