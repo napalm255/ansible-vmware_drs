@@ -2,53 +2,84 @@
 - hosts: localhost
   connection: local
   gather_facts: false
-  ignore_errors: true
 
   vars:
-    vcenter_hostname: vcenter.example.com
-    vcenter_user: username
-    vcenter_pass: password
-    vcenter_cluster: Cluster Name
-    drs_name: DRS Rule_Name
-    drs_vms:
-      vm-a
-      vm-b
+    vcenter_hostname: "{{ lookup('ENV', 'VMDRS_VCENTER_HOSTNAME') }}"
+    vcenter_user: "{{ lookup('ENV', 'VMDRS_VCENTER_USER') }}"
+    vcenter_pass: "{{ lookup('ENV', 'VMDRS_VCENTER_PASS') }}"
+    cluster_name: "{{ lookup('ENV', 'VMDRS_CLUSTER_NAME') }}"
+    drs_rule_name: "{{ lookup('ENV', 'VMDRS_RULE_NAME') }}"
+    vms: "{{ lookup('ENV', 'VMDRS_VMS').split(',') }}"
 
   tasks:
-    - name: Debug
-      debug: var=inventory_hostname
-
-    - name: Gather facts only
+    - name: Gather Facts Only
       vmware_drs:
         hostname: "{{ vcenter_hostname }}"
         username: "{{ vcenter_user }}"
         password: "{{ vcenter_pass }}"
-        cluster: "{{ vcenter_cluster }}"
-        vms: "{{ drs_vms }}"
+        cluster: "{{ cluster_name }}"
         gather_facts: true
+        vms: "{{ vms }}"
         validate_certs: false
       register: results
 
-    - name: Delete DRS rule
+    - debug: var=results
+
+    - name: Create DRS Rule - Affinity - Keep Together
       vmware_drs:
         hostname: "{{ vcenter_hostname }}"
         username: "{{ vcenter_user }}"
         password: "{{ vcenter_pass }}"
-        cluster: "{{ vcenter_cluster }}"
-        state: absent
-        name: "{{ drs_name }}"
+        cluster: "{{ cluster_name }}"
+        state: "present"
+        name: "{{ drs_rule_name }}"
+        vms: "{{ vms }}"
+        keep_together: true
         validate_certs: false
+        force_update: true
       register: results
 
-    - name: Create DRS rule
+    - debug: var=results
+
+    - name: Delete DRS Rule
       vmware_drs:
         hostname: "{{ vcenter_hostname }}"
         username: "{{ vcenter_user }}"
         password: "{{ vcenter_pass }}"
-        cluster: "{{ vcenter_cluster }}"
-        state: present
-        name: "{{ drs_name }}"
-        vms: "{{ drs_vms }}"
+        cluster: "{{ cluster_name }}"
+        state: "absent"
+        name: "{{ drs_rule_name }}"
+        vms: "{{ vms }}"
+        validate_certs: false
+      register: results
+
+    - debug: var=results
+
+    - name: Create DRS Rule - AntiAffinity - Keep Apart
+      vmware_drs:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_pass }}"
+        cluster: "{{ cluster_name }}"
+        state: "present"
+        name: "{{ drs_rule_name }}"
+        vms: "{{ vms }}"
         keep_together: false
         validate_certs: false
       register: results
+
+    - debug: var=results
+
+    - name: Delete DRS Rule
+      vmware_drs:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_pass }}"
+        cluster: "{{ cluster_name }}"
+        state: "absent"
+        name: "{{ drs_rule_name }}"
+        vms: "{{ vms }}"
+        validate_certs: false
+      register: results
+
+    - debug: var=results
