@@ -8,11 +8,11 @@
     vcenter_hostname: vcenter.example.com
     vcenter_user: username
     vcenter_pass: password
-    vcenter_cluster: cluster-name
-    drs_name: DRS-RULE-NAME
-    drs_hosts:
-      host-a
-      host-b
+    vcenter_cluster: Cluster Name
+    drs_name: DRS Rule_Name
+    drs_vms:
+      vm-a
+      vm-b
 
   tasks:
     - name: Debug
@@ -24,7 +24,7 @@
         username: "{{ vcenter_user }}"
         password: "{{ vcenter_pass }}"
         cluster: "{{ vcenter_cluster }}"
-        hosts: "{{ drs_hosts }}"
+        vms: "{{ drs_vms }}"
         gather_facts: true
         validate_certs: false
       register: results
@@ -48,7 +48,7 @@
         cluster: "{{ vcenter_cluster }}"
         state: present
         name: "{{ drs_name }}"
-        hosts: "{{ drs_hosts }}"
+        vms: "{{ drs_vms }}"
         keep_together: false
         validate_certs: false
       register: results
