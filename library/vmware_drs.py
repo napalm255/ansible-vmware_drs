@@ -60,7 +60,7 @@ options:
         description:
             - If set to C(true), fact gather only.
             - Return rules defined on cluster.
-            - If hosts are defined, return hosts facts.
+            - If vms are defined, return vm facts.
     state:
         required: false
         default: present
@@ -74,10 +74,10 @@ options:
         description:
             - The name of the DRS rule to manage.
             - Required when gather_facts is C(false)
-    hosts:
+    vms:
         required: false
         description:
-            - A list of hosts for the DRS rule.
+            - A list of vms for the DRS rule.
             - Required when state is C(present)
     keep_together:
         required: false
@@ -111,23 +111,23 @@ options:
 '''
 
 EXAMPLES = '''
-# gather facts on cluster and hosts
+# gather facts on cluster and vms
 - vmware_drs:
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
-    cluster: "vcenter-cluster"
+    cluster: "Cluster Name"
     gather_facts: true
-    hosts:
-        - hosta
-        - hostb
+    vms:
+        - vma
+        - vmb
 
 # gather facts on just cluster
 - vmware_drs:
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
-    cluster: "vcenter-cluster"
+    cluster: "Cluster Name"
     gather_facts: true
 
 # create vmware drs rule
@@ -135,11 +135,11 @@ EXAMPLES = '''
     hostname: "vcenter.example.com"
     username: "vcuser"
     password: "vcpass"
-    cluster: "vcenter-cluster"
-    name: "hosta-hostb"
-    hosts:
-        - hosta
-        - hostb
+    cluster: "Cluster Name"
+    name: "drs-rule-name"
+    vms:
+        - vma
+        - vmb
     keep_together: false
 
 # delete vmware drs rule
@@ -149,7 +149,7 @@ EXAMPLES = '''
     password: "vcpass"
     cluster: "vcenter-cluster"
     state: "absent"
-    name: "hosta-hostb"
+    name: "drs-rule-name"
 '''
 
 # pylint: disable = wrong-import-position
@@ -187,7 +187,7 @@ class VMWareDRS(object):
         self.rules = None
         self.cluster = None
         self.rule_exists = False
-        self.hosts_in_rule = False
+        self.vms_in_rule = False
 
     def __enter__(self):
         """Enter."""
@@ -288,13 +288,13 @@ class VMWareDRS(object):
         self.results['ansible_facts']['cluster']['name'] = self.cluster.name
         self.results['ansible_facts']['cluster']['rules'] = self.rules
 
-        for host in self.arg.hosts:
-            vm_obj = self._get_vm(host)
+        for vm_name in self.arg.vms:
+            vm_obj = self._get_vm(vm_name)
             if not vm_obj:
-                self.module.fail_json(msg='host not found: %s' % host)
+                self.module.fail_json(msg='vm not found: %s' % vm_name)
             vm_facts = self._get_facts(vm_obj)
             vm_rules = self._get_drs_rules_by_vm(vm_obj)
-            ansible_facts = {'name': host,
+            ansible_facts = {'name': vm_name,
                              'facts': vm_facts,
                              'rules': vm_rules}
             self.results['ansible_facts']['vms'].append(ansible_facts)
@@ -305,10 +305,10 @@ class VMWareDRS(object):
         self.vms = vms
 
     def check(self):
-        """Check if rule exists and all hosts are members."""
+        """Check if rule exists and all vms are members."""
         exists = False
         self.rule_exists = False
-        self.hosts_in_rule = False
+        self.vms_in_rule = False
         self.gather_facts()
 
         for rule in self.rules:
@@ -316,16 +316,18 @@ class VMWareDRS(object):
                 self.rule_exists = True
                 break
 
-        hosts = list()
-        for host in self.vms:
-            for rule in host['rules']:
+        # FIXME: if vm in rule, but manually added, does not get
+        #        updated
+        vms = list()
+        for vm_obj in self.vms:
+            for rule in vm_obj['rules']:
                 if rule['name'] == self.arg.name:
-                    hosts.append(host['name'])
+                    vms.append(vm_obj['name'])
 
-        if hosts == self.arg.hosts:
-            self.hosts_in_rule = True
+        if vms == self.arg.vms:
+            self.vms_in_rule = True
 
-        if self.rule_exists and self.hosts_in_rule:
+        if self.rule_exists and self.vms_in_rule:
             exists = True
         return exists
 
@@ -379,7 +381,7 @@ def main():
             state=dict(type='str', default='present'),
             cluster=dict(type='str', required=True),
             name=dict(type='str', required=False),
-            hosts=dict(type='list', default=list()),
+            vms=dict(type='list', default=list()),
             keep_together=dict(type='bool', required=False),
             force_update=dict(type='bool', default=False),
             validate_certs=dict(type='bool', default=True),
@@ -416,7 +418,7 @@ def main():
                 vcenter.results['changed'] = vcenter.update()
             elif not vcenter.rule_exists:
                 vcenter.results['changed'] = vcenter.create()
-            elif not vcenter.hosts_in_rule:
+            elif not vcenter.vms_in_rule:
                 vcenter.results['changed'] = vcenter.update()
         elif vcenter.arg.state == 'absent':
             if vcenter.rule_exists:
