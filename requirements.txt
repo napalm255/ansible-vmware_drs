@@ -1,4 +1,4 @@
-ansible==2.4.1.0
+ansible==2.9.10
 pyvmomi==6.5.0.2017.5.post1
 
 # Python 2.6 Support
