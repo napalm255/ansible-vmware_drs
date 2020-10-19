@@ -1,5 +1,5 @@
 ansible==2.10.1
-pyvmomi==6.5.0.2017.5.post1
+pyvmomi==7.0
 
 # Python 2.6 Support
 wheel==0.29.0; python_version < '2.7' # pyup: >=0.25.0,<0.30.0
