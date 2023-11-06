@@ -1,6 +1,6 @@
 -rrequirements.txt
 tox==4.11.3
-codecov==2.0.9
+codecov==2.1.13
 yamllint==1.10.0
 
 # Python 2.6 Support
